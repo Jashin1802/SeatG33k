@@ -1,4 +1,6 @@
-from flask import Flask, jsonify
+from pathlib import Path
+
+from flask import Flask, jsonify, send_from_directory
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from .config import Config
@@ -15,6 +17,11 @@ from .routes.sessions import bp as sessions_bp
 def create_app(config_object: type[Config] = Config) -> Flask:
     app = Flask(__name__)
     app.config.from_object(config_object)
+    project_root = Path(__file__).resolve().parents[2]
+    frontend_root = project_root / "Frontend"
+    public_dir = frontend_root / "public"
+    private_dir = frontend_root / "private"
+    src_js_dir = frontend_root / "src" / "js"
 
     db.init_app(app)
 
@@ -33,7 +40,31 @@ def create_app(config_object: type[Config] = Config) -> Flask:
 
     @app.get("/")
     def index():
-        return jsonify({"success": True, "message": "SeatG33k backend is running"}), 200
+        return send_from_directory(str(public_dir), "Login.html")
+
+    @app.get("/login")
+    def login_page():
+        return send_from_directory(str(public_dir), "Login.html")
+
+    @app.get("/manager")
+    def manager_page():
+        return send_from_directory(str(private_dir), "Manager.html")
+
+    @app.get("/participant")
+    def participant_page():
+        return send_from_directory(str(private_dir), "Participation.html")
+
+    @app.get("/public/<path:filename>")
+    def public_assets(filename: str):
+        return send_from_directory(str(public_dir), filename)
+
+    @app.get("/private/<path:filename>")
+    def private_assets(filename: str):
+        return send_from_directory(str(private_dir), filename)
+
+    @app.get("/src/js/<path:filename>")
+    def js_assets(filename: str):
+        return send_from_directory(str(src_js_dir), filename)
 
     @app.errorhandler(400)
     @app.errorhandler(404)

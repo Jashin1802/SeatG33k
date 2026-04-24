@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SeatG33k – Smart Seat Allocation</title>
+
+  <!-- Google Fonts -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=DM+Sans:wght@300;400;500&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="/private/styles.css" />
+</head>
+<body>
+
+  <!-- ══════════════════ TOAST CONTAINER ══════════════════ -->
+  <div class="toast-container" id="toastContainer"></div>
+
+   <!-- ════════════════════════════════════════════════════════
+       PAGE 3 – PARTICIPANT VIEW
+  ════════════════════════════════════════════════════════ -->
+  <div class="page active" id="page-participant">
+
+    <nav class="nav">
+      <div class="nav-brand">
+        <div class="icon">🪑</div>
+        Seat<span>G33k</span>
+      </div>
+      <div class="nav-right">
+        <span class="nav-badge">👤 Participant View</span>
+        <button class="nav-logout" onclick="logout()">Logout</button>
+      </div>
+    </nav>
+
+    <div class="participant-body">
+
+      <div class="participant-welcome">
+        <h2>Welcome back, <span id="participantFirstName">—</span> 👋</h2>
+        <p>Here are your training session details for today.</p>
+      </div>
+
+      <div class="participant-card">
+
+        <div class="participant-card-top">
+          <div class="participant-avatar" id="participantAvatar">—</div>
+          <div class="participant-name-block">
+            <div class="p-name" id="participantFullName">—</div>
+            <div class="p-id"   id="participantIdLabel">Participant ID: —</div>
+            <span class="badge-dept p-dept" id="participantDeptBadge">—</span>
+          </div>
+        </div>
+
+        <div class="participant-card-body">
+
+          <div class="p-info-grid">
+            <div class="p-info-field">
+              <label>Email Address</label>
+              <div class="val" id="pEmail">—</div>
+            </div>
+            <div class="p-info-field">
+              <label>Contact Number</label>
+              <div class="val" id="pContact">—</div>
+            </div>
+            <div class="p-info-field">
+              <label>Department</label>
+              <div class="val" id="pDept">—</div>
+            </div>
+            <div class="p-info-field">
+              <label>Allocation Status</label>
+              <div class="val" id="pStatus">—</div>
+            </div>
+          </div>
+
+          <div class="p-section-label">Your Training Session</div>
+
+          <div class="session-banner" id="participantSessionBanner">
+            <div class="session-banner-icon" id="participantSessionIcon">📅</div>
+            <div class="session-banner-info">
+              <div class="sb-label">Assigned Session</div>
+              <div class="sb-session" id="participantSession">—</div>
+              <div class="sb-time"    id="participantTime">—</div>
+            </div>
+          </div>
+
+          <div class="p-status-row">
+            <div class="status-pill confirmed" id="participantStatusPill">
+              <div class="status-pill-dot"></div>
+              <span id="participantStatusText">Confirmed</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- JavaScript -->
+  <script src="/src/js/integration.js"></script>
+
+</body>
+</html>

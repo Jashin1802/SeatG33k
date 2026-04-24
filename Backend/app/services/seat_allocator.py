@@ -6,13 +6,11 @@ from .session_service import ensure_capacity
 
 
 def allocate_seat(sess_id: int, participant_id: int, preferred_accessible: bool | None = None) -> dict:
-    session = Session.query.get_or_404(sess_id)
+    Session.query.get_or_404(sess_id)
     Participant.query.get_or_404(participant_id)
-    is_member = DivisionParticipant.query.filter_by(
-        div_id=session.div_id, participant_id=participant_id
-    ).first()
+    is_member = DivisionParticipant.query.filter_by(participant_id=participant_id).first()
     if not is_member:
-        raise ValueError("Participant must belong to the session's division before allocation.")
+        raise ValueError("Participant must belong to a division before allocation.")
 
     existing_enrollment = SessionEnrollment.query.filter_by(
         sess_id=sess_id, participant_id=participant_id

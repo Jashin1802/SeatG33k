@@ -64,6 +64,20 @@
 
       <div class="sessions-row" id="sessionCards"></div>
 
+      <div class="table-section" style="margin-bottom: 1rem;">
+        <div class="table-header">
+          <div class="table-title">Manager CRUD Actions</div>
+          <div class="search-wrap">
+            <button class="btn-search" onclick="createManagerPrompt()">+ Manager</button>
+            <button class="btn-search" onclick="updateManagerPrompt()">Edit Manager</button>
+            <button class="btn-search" onclick="deleteManagerPrompt()">Delete Manager</button>
+            <button class="btn-search" onclick="createParticipantPrompt()">+ Participant</button>
+            <button class="btn-search" onclick="updateParticipantPrompt()">Edit Participant</button>
+            <button class="btn-search" onclick="deleteParticipantPrompt()">Delete Participant</button>
+          </div>
+        </div>
+      </div>
+
       <div class="table-section">
         <div class="table-header">
           <div class="table-title">
@@ -104,6 +118,7 @@
                 <th>Email</th>
                 <th>Department</th>
                 <th>Session</th>
+                <th>Seat Status</th>
                 <th>Contact</th>
               </tr>
             </thead>

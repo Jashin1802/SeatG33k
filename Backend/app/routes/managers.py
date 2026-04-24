@@ -64,3 +64,31 @@ def create_manager():
     db.session.commit()
 
     return jsonify({"success": True, "data": {"manager_id": manager.manager_id}}), 201
+
+
+@bp.patch("/<int:manager_id>")
+def update_manager(manager_id: int):
+    manager = Manager.query.get_or_404(manager_id)
+    payload = request.get_json(silent=True) or {}
+
+    if "first_name" in payload:
+        manager.first_name = payload["first_name"]
+    if "last_name" in payload:
+        manager.last_name = payload["last_name"]
+    if "contact_no" in payload:
+        manager.contact_no = payload["contact_no"]
+    if "email_address" in payload:
+        manager.email_address = str(payload["email_address"]).strip().lower()
+    if payload.get("password"):
+        manager.password_hash = hash_password(payload["password"])
+
+    db.session.commit()
+    return jsonify({"success": True, "message": "Manager updated successfully"})
+
+
+@bp.delete("/<int:manager_id>")
+def delete_manager(manager_id: int):
+    manager = Manager.query.get_or_404(manager_id)
+    db.session.delete(manager)
+    db.session.commit()
+    return jsonify({"success": True, "message": "Manager deleted successfully"})

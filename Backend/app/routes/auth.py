@@ -1,7 +1,16 @@
 from flask import Blueprint, jsonify, request
 
 from ..extensions import db
-from ..models import Division, Manager, Participant, Seat, Session, SessionEnrollment
+from ..models import (
+    Division,
+    DivisionParticipant,
+    Manager,
+    Participant,
+    Seat,
+    SeatConfirmation,
+    Session,
+    SessionEnrollment,
+)
 from ..utils.security import verify_password
 from ..utils.validators import require_fields
 
@@ -44,10 +53,21 @@ def participant_login():
         return jsonify({"success": False, "message": "Invalid credentials"}), 401
 
     allocations = (
-        db.session.query(SessionEnrollment, Session, Division, Seat)
+        db.session.query(SessionEnrollment, Session, DivisionParticipant, Division, Seat, SeatConfirmation)
         .join(Session, Session.sess_id == SessionEnrollment.sess_id)
-        .join(Division, Division.div_id == Session.div_id)
+        .join(
+            DivisionParticipant,
+            DivisionParticipant.participant_id == SessionEnrollment.participant_id,
+        )
+        .join(Division, Division.div_id == DivisionParticipant.div_id)
         .outerjoin(Seat, Seat.seat_id == SessionEnrollment.seat_id)
+        .outerjoin(
+            SeatConfirmation,
+            db.and_(
+                SeatConfirmation.sess_id == SessionEnrollment.sess_id,
+                SeatConfirmation.participant_id == SessionEnrollment.participant_id,
+            ),
+        )
         .filter(SessionEnrollment.participant_id == participant.participant_id)
         .order_by(Session.sess_id.asc())
         .all()
@@ -67,14 +87,17 @@ def participant_login():
                     {
                         "sess_id": session.sess_id,
                         "session_name": session.name,
+                        "starts_at": session.starts_at,
+                        "ends_at": session.ends_at,
                         "division_id": division.div_id,
                         "division_name": division.name,
                         "status": session.status,
                         "seat_id": enrollment.seat_id,
                         "seat_label": seat.seat_label if seat else None,
+                        "seat_confirmation_status": confirmation.status if confirmation else "pending",
                         "enrolled_at": enrollment.enrolled_at.isoformat() if enrollment.enrolled_at else None,
                     }
-                    for enrollment, session, division, seat in allocations
+                    for enrollment, session, _, division, seat, confirmation in allocations
                 ],
             },
         }

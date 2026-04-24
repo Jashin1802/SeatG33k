@@ -1,6 +1,8 @@
 const API_BASE = "";
 let managerParticipants = [];
 let filteredManagerParticipants = [];
+let currentParticipantSession = null;
+let managerDataLoaded = false;
 
 function getCurrentRoleFromUI() {
   const activeBtn = document.querySelector(".login-role-btn.active");
@@ -21,6 +23,16 @@ async function apiRequest(path, method = "GET", payload = null) {
     throw new Error(data.message || "Request failed");
   }
   return data;
+}
+
+function showToast(message, type = "success") {
+  const container = document.getElementById("toastContainer");
+  if (!container) return;
+  const toast = document.createElement("div");
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
 }
 
 window.setRole = function setRole(role) {
@@ -123,6 +135,7 @@ function renderManagerTable(list) {
         <td style="color:#6b7280;font-size:13px;">${p.email_address || "-"}</td>
         <td>${p.division_name || "-"}</td>
         <td>${p.session_name || "Unassigned"}</td>
+        <td>${String(p.seat_confirmation_status || "pending").toUpperCase()}</td>
         <td style="color:#6b7280;font-size:13px;">${p.contact_no || "-"}</td>
       </tr>
     `
@@ -182,7 +195,12 @@ window.selectParticipant = function selectParticipant(participantId) {
     <div class="detail-session-card">
       <div class="s-label">Seat</div>
       <div class="s-val">${participant.seat_label || "-"}</div>
-      <div class="s-sub">Seat ID: ${participant.seat_id || "-"}</div>
+      <div class="s-sub">Seat ID: ${participant.seat_id || "-"} | ${participant.seat_confirmation_status || "pending"}</div>
+    </div>
+    <div class="detail-session-card">
+      <div class="s-label">Actions</div>
+      <div class="s-val"><button class="btn-primary" onclick="reallocateSeat(${participant.participant_id}, ${participant.session_id || "null"})">Reallocate Seat</button></div>
+      <div class="s-sub">Use after rejection or unassigned seats.</div>
     </div>
   `;
 
@@ -194,14 +212,26 @@ window.closeDetail = function closeDetail() {
   if (detailPanel) detailPanel.classList.remove("visible");
 };
 
-async function initManagerPage(user) {
-  const managerName = document.getElementById("managerName");
-  if (managerName && user?.data?.first_name) {
-    managerName.textContent = `${user.data.first_name} ${user.data.last_name || ""}`.trim();
+window.reallocateSeat = async function reallocateSeat(participantId, sessionId) {
+  if (!sessionId) {
+    showToast("No session available for this participant.", "error");
+    return;
   }
+  try {
+    await apiRequest("/api/seats/allocate", "POST", {
+      sess_id: sessionId,
+      participant_id: participantId,
+    });
+    showToast("Seat reallocated successfully.", "success");
+    await loadManagerData();
+  } catch (error) {
+    showToast(error.message, "error");
+  }
+};
 
+async function loadManagerData() {
   const [participants, sessions, participantDivisionMap] = await Promise.all([
-    apiRequest("/api/participants"),
+    apiRequest("/api/participants?page=1&page_size=100"),
     apiRequest("/api/sessions"),
     buildParticipantDivisionMap(),
   ]);
@@ -219,11 +249,12 @@ async function initManagerPage(user) {
       session_status: sessionInfo?.status || null,
       seat_id: sessionInfo?.seat_id || null,
       seat_label: sessionInfo?.seat_label || null,
+      seat_confirmation_status: sessionInfo?.seat_confirmation_status || "pending",
     };
   });
   filteredManagerParticipants = [...managerParticipants];
 
-  const totalParticipants = participants.meta?.total ?? participants.data?.length ?? 0;
+  const totalParticipants = participants.data?.length ?? participants.meta?.total ?? 0;
   const assignedCount = managerParticipants.filter((p) => p.session_name).length;
   const statTotal = document.getElementById("statTotal");
   const statAssigned = document.getElementById("statAssigned");
@@ -241,7 +272,7 @@ async function initManagerPage(user) {
           <div class="session-card-header">
             <div>
               <div class="session-name">${s.name}</div>
-              <div class="session-time">Status: ${s.status}</div>
+              <div class="session-time">${s.starts_at || "TBD"} - ${s.ends_at || "TBD"} | Status: ${s.status}</div>
             </div>
             <div class="session-seats-badge">${s.max_participants} max</div>
           </div>
@@ -254,12 +285,26 @@ async function initManagerPage(user) {
   renderManagerTable(filteredManagerParticipants);
 }
 
+async function initManagerPage(user) {
+  const managerName = document.getElementById("managerName");
+  if (managerName && user?.data?.first_name) {
+    managerName.textContent = `${user.data.first_name} ${user.data.last_name || ""}`.trim();
+  }
+  await loadManagerData();
+  managerDataLoaded = true;
+}
+
 async function initParticipantPage(user) {
   const participant = user?.data;
   if (!participant) return;
 
-  const sessionsRes = await apiRequest(`/api/participants/${participant.participant_id}/sessions`);
-  const currentSession = sessionsRes.data?.[0] || null;
+  let currentSession = null;
+  if (Array.isArray(participant.allocated_sessions) && participant.allocated_sessions.length) {
+    currentSession = participant.allocated_sessions[0];
+  } else {
+    const sessionsRes = await apiRequest(`/api/participants/${participant.participant_id}/sessions`);
+    currentSession = sessionsRes.data?.[0] || null;
+  }
 
   const fullName = `${participant.first_name} ${participant.last_name}`;
   const initials = `${participant.first_name?.[0] || ""}${participant.last_name?.[0] || ""}`.toUpperCase();
@@ -273,10 +318,155 @@ async function initParticipantPage(user) {
   setText("pContact", participant.contact_no || "-");
   setText("pDept", currentSession?.division_name || "-");
   setText("pStatus", currentSession ? "Confirmed" : "Pending");
-  setText("participantSession", currentSession?.session_name || "Not assigned");
-  setText("participantTime", currentSession ? `Status: ${currentSession.status}` : "Awaiting allocation");
-  setText("participantStatusText", currentSession ? "Confirmed" : "Pending");
+
+  const sessionBanner = document.getElementById("participantSessionBanner");
+  const sessionIcon = document.getElementById("participantSessionIcon");
+  const statusPill = document.getElementById("participantStatusPill");
+  const statusText = document.getElementById("participantStatusText");
+
+  if (currentSession) {
+    const range = currentSession.starts_at && currentSession.ends_at
+      ? `${currentSession.starts_at} - ${currentSession.ends_at}`
+      : "Time not set";
+    const seatInfo = currentSession.seat_label ? `Seat ${currentSession.seat_label}` : "Seat pending";
+
+    setText("participantSession", currentSession.session_name || "Assigned");
+    setText(
+      "participantTime",
+      `${range} | ${seatInfo} | ${String(currentSession.status || "open").toUpperCase()} | ${String(
+        currentSession.seat_confirmation_status || "pending"
+      ).toUpperCase()}`
+    );
+    if (sessionBanner) sessionBanner.className = "session-banner assigned";
+    if (sessionIcon) sessionIcon.textContent = "📅";
+    if (statusPill) statusPill.className = "status-pill confirmed";
+    if (statusText) statusText.textContent = String(currentSession.seat_confirmation_status || "pending");
+  } else {
+    setText("participantSession", "Not assigned");
+    setText("participantTime", "Awaiting allocation from manager");
+    if (sessionBanner) sessionBanner.className = "session-banner unassigned";
+    if (sessionIcon) sessionIcon.textContent = "⏳";
+    if (statusPill) statusPill.className = "status-pill pending";
+    if (statusText) statusText.textContent = "Pending";
+  }
+
+  currentParticipantSession = currentSession;
+  const confirmBtn = document.getElementById("confirmSeatBtn");
+  const rejectBtn = document.getElementById("rejectSeatBtn");
+  if (confirmBtn) confirmBtn.disabled = !currentSession;
+  if (rejectBtn) rejectBtn.disabled = !currentSession;
 }
+
+window.confirmSeat = async function confirmSeat() {
+  const user = JSON.parse(localStorage.getItem("seatg33k_user") || "null");
+  if (!user?.data?.participant_id || !currentParticipantSession?.sess_id) return;
+  try {
+    await apiRequest(
+      `/api/participants/${user.data.participant_id}/sessions/${currentParticipantSession.sess_id}/confirm-seat`,
+      "POST"
+    );
+    const sessionsRes = await apiRequest(`/api/participants/${user.data.participant_id}/sessions`);
+    currentParticipantSession = sessionsRes.data?.[0] || currentParticipantSession;
+    await initParticipantPage(user);
+    showToast("Seat confirmed.", "success");
+  } catch (error) {
+    showToast(error.message, "error");
+  }
+};
+
+window.rejectSeat = async function rejectSeat() {
+  const user = JSON.parse(localStorage.getItem("seatg33k_user") || "null");
+  if (!user?.data?.participant_id || !currentParticipantSession?.sess_id) return;
+  try {
+    await apiRequest(
+      `/api/participants/${user.data.participant_id}/sessions/${currentParticipantSession.sess_id}/reject-seat`,
+      "POST"
+    );
+    const sessionsRes = await apiRequest(`/api/participants/${user.data.participant_id}/sessions`);
+    currentParticipantSession = sessionsRes.data?.[0] || null;
+    await initParticipantPage(user);
+    showToast("Seat rejected. Waiting reallocation.", "success");
+  } catch (error) {
+    showToast(error.message, "error");
+  }
+};
+
+window.createManagerPrompt = async function createManagerPrompt() {
+  const first_name = prompt("Manager first name:");
+  if (!first_name) return;
+  const last_name = prompt("Manager last name:") || "";
+  const email_address = prompt("Manager email:") || "";
+  const password = prompt("Manager password:") || "";
+  try {
+    await apiRequest("/api/managers", "POST", { first_name, last_name, email_address, password });
+    showToast("Manager created.", "success");
+  } catch (error) {
+    showToast(error.message, "error");
+  }
+};
+
+window.updateManagerPrompt = async function updateManagerPrompt() {
+  const managerId = prompt("Manager ID to update:");
+  if (!managerId) return;
+  const contact_no = prompt("New contact number:") || "";
+  try {
+    await apiRequest(`/api/managers/${managerId}`, "PATCH", { contact_no });
+    showToast("Manager updated.", "success");
+  } catch (error) {
+    showToast(error.message, "error");
+  }
+};
+
+window.deleteManagerPrompt = async function deleteManagerPrompt() {
+  const managerId = prompt("Manager ID to delete:");
+  if (!managerId) return;
+  try {
+    await apiRequest(`/api/managers/${managerId}`, "DELETE");
+    showToast("Manager deleted.", "success");
+  } catch (error) {
+    showToast(error.message, "error");
+  }
+};
+
+window.createParticipantPrompt = async function createParticipantPrompt() {
+  const first_name = prompt("Participant first name:");
+  if (!first_name) return;
+  const last_name = prompt("Participant last name:") || "";
+  const email_address = prompt("Participant email:") || "";
+  const password = prompt("Participant password:") || "";
+  try {
+    await apiRequest("/api/participants", "POST", { first_name, last_name, email_address, password });
+    await loadManagerData();
+    showToast("Participant created.", "success");
+  } catch (error) {
+    showToast(error.message, "error");
+  }
+};
+
+window.updateParticipantPrompt = async function updateParticipantPrompt() {
+  const participantId = prompt("Participant ID to update:");
+  if (!participantId) return;
+  const contact_no = prompt("New contact number:") || "";
+  try {
+    await apiRequest(`/api/participants/${participantId}`, "PATCH", { contact_no });
+    await loadManagerData();
+    showToast("Participant updated.", "success");
+  } catch (error) {
+    showToast(error.message, "error");
+  }
+};
+
+window.deleteParticipantPrompt = async function deleteParticipantPrompt() {
+  const participantId = prompt("Participant ID to delete:");
+  if (!participantId) return;
+  try {
+    await apiRequest(`/api/participants/${participantId}`, "DELETE");
+    await loadManagerData();
+    showToast("Participant deleted.", "success");
+  } catch (error) {
+    showToast(error.message, "error");
+  }
+};
 
 async function initPage() {
   const pathname = window.location.pathname.toLowerCase();

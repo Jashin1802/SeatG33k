@@ -12,6 +12,7 @@ from .routes.managers import bp as managers_bp
 from .routes.participants import bp as participants_bp
 from .routes.seats import bp as seats_bp
 from .routes.sessions import bp as sessions_bp
+from .utils.security import hash_password
 
 
 def create_app(config_object: type[Config] = Config) -> Flask:
@@ -26,9 +27,18 @@ def create_app(config_object: type[Config] = Config) -> Flask:
     db.init_app(app)
 
     with app.app_context():
-        from . import models  # noqa: F401
+        from .models import Manager, Participant  # noqa: F401
 
         db.create_all()
+        # Keep teammate seed data usable: replace placeholder hashes with known test credentials once.
+        seeded_managers = Manager.query.filter_by(password_hash="placeholder_hash").all()
+        for manager in seeded_managers:
+            manager.password_hash = hash_password("admin123")
+        seeded_participants = Participant.query.filter_by(password_hash="placeholder_hash").all()
+        for participant in seeded_participants:
+            participant.password_hash = hash_password("pass123")
+        if seeded_managers or seeded_participants:
+            db.session.commit()
 
     app.register_blueprint(api_bp, url_prefix="/api")
     app.register_blueprint(auth_bp)

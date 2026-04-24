@@ -1,27 +1,24 @@
 from flask import Blueprint, jsonify, request
 
 from ..extensions import db
-from ..models import Session
+from ..models import Division, Session, SessionDivisionLimit
 from ..services.session_service import get_session_availability
-from ..utils.validators import parse_pagination, require_fields, require_positive_int
+from ..utils.validators import parse_pagination, require_fields
 
 bp = Blueprint("sessions", __name__, url_prefix="/api/sessions")
 
 SESSION_LIMITS = {
-    "morning session": 8,
-    "midday session": 6,
-    "afternoon session": 6,
+    "morning session": 20,
+    "midday session": 20,
+    "afternoon session": 20,
 }
 
 
 @bp.get("")
 def list_sessions():
     page, page_size = parse_pagination(request.args)
-    div_id = request.args.get("div_id", type=int)
     status = request.args.get("status")
     query = Session.query
-    if div_id:
-        query = query.filter_by(div_id=div_id)
     if status:
         query = query.filter_by(status=status)
     pagination = query.order_by(Session.sess_id.asc()).paginate(page=page, per_page=page_size, error_out=False)
@@ -32,9 +29,10 @@ def list_sessions():
             "data": [
                 {
                     "sess_id": session.sess_id,
-                    "div_id": session.div_id,
                     "name": session.name,
                     "max_participants": session.max_participants,
+                    "starts_at": session.starts_at,
+                    "ends_at": session.ends_at,
                     "status": session.status,
                 }
                 for session in pagination.items
@@ -46,7 +44,7 @@ def list_sessions():
 @bp.post("")
 def create_session():
     payload = request.get_json(silent=True) or {}
-    require_fields(payload, ["div_id", "name", "max_participants"])
+    require_fields(payload, ["name", "max_participants"])
     normalized_name = str(payload["name"]).strip().lower()
     if normalized_name not in SESSION_LIMITS:
         return (
@@ -59,7 +57,10 @@ def create_session():
             400,
         )
 
-    provided_max = require_positive_int(payload["max_participants"], "max_participants")
+    try:
+        provided_max = int(payload["max_participants"])
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "message": "max_participants must be an integer."}), 400
     required_max = SESSION_LIMITS[normalized_name]
     if provided_max != required_max:
         return (
@@ -72,18 +73,33 @@ def create_session():
             400,
         )
 
-    same_name_count = Session.query.filter(db.func.lower(Session.name) == normalized_name).count()
-    if same_name_count >= 3:
-        return jsonify({"success": False, "message": f"Maximum of 3 '{payload['name']}' entries reached."}), 409
+    existing = Session.query.filter(db.func.lower(Session.name) == normalized_name).first()
+    if existing:
+        return jsonify({"success": False, "message": f"Session '{payload['name']}' already exists."}), 409
 
     session = Session(
-        div_id=payload["div_id"],
         name=str(payload["name"]).strip(),
         max_participants=required_max,
         status=payload.get("status", "scheduled"),
     )
     db.session.add(session)
     db.session.commit()
+
+    # Default per-division quotas from project constraints.
+    default_limits = {"division a": 8, "division b": 6, "division c": 6}
+    divisions = Division.query.all()
+    for division in divisions:
+        max_seats = default_limits.get(division.name.strip().lower())
+        if max_seats:
+            db.session.add(
+                SessionDivisionLimit(
+                    sess_id=session.sess_id,
+                    div_id=division.div_id,
+                    max_seats=max_seats,
+                )
+            )
+    db.session.commit()
+
     return jsonify({"success": True, "data": {"sess_id": session.sess_id}}), 201
 
 
@@ -104,3 +120,28 @@ def update_session_status(sess_id: int):
 @bp.get("/<int:sess_id>/capacity")
 def get_capacity(sess_id: int):
     return jsonify({"success": True, "data": get_session_availability(sess_id)})
+
+
+@bp.get("/<int:sess_id>/division-limits")
+def get_division_limits(sess_id: int):
+    Session.query.get_or_404(sess_id)
+    rows = (
+        db.session.query(SessionDivisionLimit, Division)
+        .join(Division, Division.div_id == SessionDivisionLimit.div_id)
+        .filter(SessionDivisionLimit.sess_id == sess_id)
+        .order_by(Division.div_id.asc())
+        .all()
+    )
+    return jsonify(
+        {
+            "success": True,
+            "data": [
+                {
+                    "division_id": division.div_id,
+                    "division_name": division.name,
+                    "max_seats": limit.max_seats,
+                }
+                for limit, division in rows
+            ],
+        }
+    )

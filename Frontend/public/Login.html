@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SeatG33k – Smart Seat Allocation</title>
+
+  <!-- Google Fonts -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=DM+Sans:wght@300;400;500&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ══════════════════ TOAST CONTAINER ══════════════════ -->
+  <div class="toast-container" id="toastContainer"></div>
+
+
+  <!-- ════════════════════════════════════════════════════════
+       PAGE 1 – LOGIN
+  ════════════════════════════════════════════════════════ -->
+  <div class="page active" id="page-login">
+
+    <div class="login-card">
+
+      <div class="login-logo">
+        <div class="login-logo-icon">🪑</div>
+        <div class="login-logo-text">Seat<span>G33k</span></div>
+      </div>
+      <div class="login-tagline">Smart Seat Allocation Platform</div>
+
+      <div class="login-role-label">Login as</div>
+      <div class="login-role-toggle">
+        <button class="login-role-btn active" onclick="setRole('manager')">👔 Manager</button>
+        <button class="login-role-btn"        onclick="setRole('participant')">👤 Participant</button>
+      </div>
+
+      <label class="login-label" for="loginEmail">Email Address</label>
+      <input class="login-input" type="email" id="loginEmail" placeholder="your@email.com" />
+
+      <label class="login-label" for="loginPass">Password</label>
+      <input class="login-input" type="password" id="loginPass" placeholder="••••••••" />
+
+      <div class="btn-row">
+        <button class="btn-primary"   onclick="handleLogin()">Enter System</button>
+        <button class="btn-secondary" onclick="clearLogin()">Clear</button>
+      </div>
+
+      <div class="login-error" id="loginError"></div>
+
+    </div>
+
+    <div class="demo-hint">
+      <strong>Demo credentials —</strong>
+      Manager: <strong>manager@seatg33k.com</strong> / <strong>admin123</strong>
+      &nbsp;|&nbsp;
+      Participant: <strong>alice.smith@div.com</strong> / <strong>pass123</strong>
+    </div>
+
+  </div>
+
+</body>
+
+</html>

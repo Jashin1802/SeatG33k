@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SeatG33k – Smart Seat Allocation</title>
+
+  <!-- Google Fonts -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=DM+Sans:wght@300;400;500&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ══════════════════ TOAST CONTAINER ══════════════════ -->
+  <div class="toast-container" id="toastContainer"></div>
+
+
+   <!-- ════════════════════════════════════════════════════════
+       PAGE 2 – MANAGER DASHBOARD
+  ════════════════════════════════════════════════════════ -->
+  <div class="page" id="page-manager">
+
+    <nav class="nav">
+      <div class="nav-brand">
+        <div class="icon">🪑</div>
+        Seat<span>G33k</span>
+      </div>
+      <div class="nav-right">
+        <span class="nav-badge">👔 Manager View</span>
+        <span class="nav-badge" id="managerName">—</span>
+        <button class="nav-logout" onclick="logout()">Logout</button>
+      </div>
+    </nav>
+
+    <div class="manager-body">
+
+      <div class="stats-row">
+        <div class="stat-card blue">
+          <div class="stat-label">Total Participants</div>
+          <div class="stat-value" id="statTotal">60</div>
+          <div class="stat-sub">Across all divisions</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-label">Assigned</div>
+          <div class="stat-value" id="statAssigned">0</div>
+          <div class="stat-sub">Participants allocated</div>
+        </div>
+        <div class="stat-card orange">
+          <div class="stat-label">Unassigned</div>
+          <div class="stat-value" id="statUnassigned">60</div>
+          <div class="stat-sub">Pending allocation</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Sessions</div>
+          <div class="stat-value">3</div>
+          <div class="stat-sub">Morning · Midday · Afternoon</div>
+        </div>
+      </div>
+
+      <div class="sessions-row" id="sessionCards"></div>
+
+      <div class="table-section">
+        <div class="table-header">
+          <div class="table-title">
+            Participants
+            <span id="tableCount"></span>
+          </div>
+          <div class="search-wrap">
+            <select class="filter-select" id="deptFilter" onchange="applyFilters()">
+              <option value="">All Departments</option>
+              <option value="Division A">Division A</option>
+              <option value="Division B">Division B</option>
+              <option value="Division C">Division C</option>
+            </select>
+            <select class="filter-select" id="sessionFilter" onchange="applyFilters()">
+              <option value="">All Sessions</option>
+              <option value="Morning">Morning</option>
+              <option value="Midday">Midday</option>
+              <option value="Afternoon">Afternoon</option>
+              <option value="Unassigned">Unassigned</option>
+            </select>
+            <input
+              class="search-input"
+              type="text"
+              id="searchInput"
+              placeholder="Search by name…"
+              oninput="applyFilters()"
+            />
+            <button class="btn-search" onclick="applyFilters()">🔍 Search</button>
+          </div>
+        </div>
+
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Full Name</th>
+                <th>Email</th>
+                <th>Department</th>
+                <th>Session</th>
+                <th>Contact</th>
+              </tr>
+            </thead>
+            <tbody id="participantTableBody"></tbody>
+          </table>
+          <div class="no-results" id="noResults" style="display:none;">
+            No participants match your search.
+          </div>
+        </div>
+      </div>
+
+      <div class="detail-panel" id="detailPanel">
+        <div class="detail-panel-header">
+          <div class="detail-panel-title">📋 Participant Details</div>
+          <button class="detail-close" onclick="closeDetail()">✕</button>
+        </div>
+        <div class="detail-body">
+          <div class="detail-grid" id="detailGrid"></div>
+          <hr class="detail-divider" />
+          <div class="detail-section-label">Session &amp; Allocation Info</div>
+          <div class="detail-session-info" id="detailSession"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+  </body>
+
+</html>
